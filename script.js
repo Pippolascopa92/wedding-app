@@ -36,9 +36,9 @@ document.getElementById('addTableBtn').addEventListener('click', function() {
         posto.addEventListener('click', function() {
             let name = prompt('Inserisci il nome del partecipante:');
             if (name) {
-                posto.textContent = name[0]; // Mostra l'iniziale del nome
-                names[i] = name;
+                posto.textContent = name[0];
                 posto.dataset.name = name;
+                names[i] = name;
                 updateTooltip();
             }
         });
@@ -54,31 +54,50 @@ document.getElementById('addTableBtn').addEventListener('click', function() {
         tooltip.style.display = tooltip.style.display === 'block' ? 'none' : 'block';
     });
 
-    // Trascinamento del tavolo
-    table.addEventListener('mousedown', function(e) {
-        let shiftX = e.clientX - table.getBoundingClientRect().left;
-        let shiftY = e.clientY - table.getBoundingClientRect().top;
+    // Trascinamento del tavolo (supporto per mouse e touch)
+    table.addEventListener('mousedown', startDrag);
+    table.addEventListener('touchstart', startDrag, { passive: false });
+
+    function startDrag(e) {
+        e.preventDefault();
+
+        let startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+        let startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        let shiftX = startX - table.getBoundingClientRect().left;
+        let shiftY = startY - table.getBoundingClientRect().top;
 
         function moveAt(pageX, pageY) {
             table.style.left = pageX - shiftX + 'px';
             table.style.top = pageY - shiftY + 'px';
         }
 
-        function onMouseMove(event) {
-            moveAt(event.pageX, event.pageY);
+        function onMove(e) {
+            let moveX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            let moveY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            moveAt(moveX, moveY);
         }
 
-        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('touchmove', onMove, { passive: false });
 
-        document.addEventListener('mouseup', function() {
-            document.removeEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', () => {
+            document.removeEventListener('mousemove', onMove);
         }, { once: true });
-    });
 
-    table.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
+        document.addEventListener('touchend', () => {
+            document.removeEventListener('touchmove', onMove);
+        }, { once: true });
+    }
+
+    // Aggiungi il pulsante delle opzioni
+    let optionsBtn = document.createElement('button');
+    optionsBtn.className = 'options-btn';
+    optionsBtn.textContent = '+';
+    optionsBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
         showTableControls(table, document.getElementById('canvas'));
     });
+    table.appendChild(optionsBtn);
 
     document.getElementById('canvas').appendChild(table);
 });
@@ -197,141 +216,3 @@ function updateTooltip(table, names) {
     let tooltip = table.querySelector('.tooltip');
     tooltip.innerHTML = names.join('<br>');
 }
-
-
-document.getElementById('exportPdfBtn').addEventListener('click', function() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    const canvas = document.getElementById('canvas');
-    const tables = canvas.querySelectorAll('.tavolo');
-
-    tables.forEach((table, index) => {
-        const tableLabel = table.querySelector('div').textContent;
-        const seats = Array.from(table.querySelectorAll('.posto')).map(posto => posto.dataset.name || 'Vuoto');
-        const numSeats = seats.length;
-
-        doc.text(`Tavolo: ${tableLabel} - ${numSeats} partecipanti`, 10, 10 + (index * 30));
-
-        seats.forEach((seat, idx) => {
-            doc.text(`${seat}`, 20, 20 + (index * 30) + (idx * 10));
-        });
-    });
-
-    doc.save('disposizione_tavoli.pdf');
-});
-
-document.getElementById('saveConfigBtn').addEventListener('click', function() {
-    const canvas = document.getElementById('canvas');
-    const tables = canvas.querySelectorAll('.tavolo');
-
-    const config = [];
-
-    tables.forEach((table) => {
-        const tableLabel = table.querySelector('div').textContent;
-        const seats = Array.from(table.querySelectorAll('.posto')).map(posto => ({
-            name: posto.dataset.name || '',
-            position: {
-                left: posto.style.left,
-                top: posto.style.top
-            }
-        }));
-
-        config.push({
-            name: tableLabel,
-            position: {
-                top: table.style.top,
-                left: table.style.left
-            },
-            seats
-        });
-    });
-
-    localStorage.setItem('tableConfig', JSON.stringify(config));
-    alert('Configurazione salvata!');
-});
-
-window.addEventListener('load', function() {
-    const config = JSON.parse(localStorage.getItem('tableConfig'));
-    if (config) {
-        config.forEach(tableConfig => {
-            let table = document.createElement('div');
-            table.className = 'tavolo';
-            table.style.width = '100px';
-            table.style.height = '100px';
-            table.style.top = tableConfig.position.top;
-            table.style.left = tableConfig.position.left;
-            table.style.position = 'absolute';
-            table.innerHTML = `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">${tableConfig.name}</div>`;
-
-            tableConfig.seats.forEach((seatConfig, i) => {
-                let posto = document.createElement('div');
-                posto.className = 'posto';
-                posto.style.left = seatConfig.position.left;
-                posto.style.top = seatConfig.position.top;
-                posto.textContent = seatConfig.name ? seatConfig.name[0] : '';
-                posto.dataset.name = seatConfig.name;
-
-                posto.addEventListener('click', function() {
-                    let name = prompt('Inserisci il nome del partecipante:', posto.dataset.name || '');
-                    if (name) {
-                        posto.textContent = name[0];
-                        posto.dataset.name = name;
-                    }
-                });
-
-                posto.addEventListener('mouseenter', function() {
-                    if (posto.dataset.name) {
-                        posto.title = posto.dataset.name;
-                    }
-                });
-
-                table.appendChild(posto);
-            });
-
-            table.addEventListener('mousedown', function(e) {
-                let shiftX = e.clientX - table.getBoundingClientRect().left;
-                let shiftY = e.clientY - table.getBoundingClientRect().top;
-
-                function moveAt(pageX, pageY) {
-                    table.style.left = pageX - shiftX + 'px';
-                    table.style.top = pageY - shiftY + 'px';
-                }
-
-                function onMouseMove(event) {
-                    moveAt(event.pageX, event.pageY);
-                }
-
-                document.addEventListener('mousemove', onMouseMove);
-
-                document.addEventListener('mouseup', function() {
-                    document.removeEventListener('mousemove', onMouseMove);
-                }, { once: true });
-            });
-
-            table.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                showTableControls(table, document.getElementById('canvas'));
-            });
-
-            document.getElementById('canvas').appendChild(table);
-        });
-    }
-});
-
-document.getElementById('deleteConfigBtn').addEventListener('click', function() {
-    localStorage.removeItem('tableConfig');
-    alert('Configurazione eliminata!');
-    location.reload(); // Ricarica la pagina per riflettere l'eliminazione
-});
-
-let scale = 1;
-document.getElementById('zoomInBtn').addEventListener('click', function() {
-    scale += 0.1;
-    document.getElementById('canvas').style.transform = `scale(${scale})`;
-});
-
-document.getElementById('zoomOutBtn').addEventListener('click', function() {
-    scale -= 0.1;
-    document.getElementById('canvas').style.transform = `scale(${scale})`;
-});
