@@ -54,9 +54,15 @@ document.getElementById('addTableBtn').addEventListener('click', function() {
         tooltip.style.display = tooltip.style.display === 'block' ? 'none' : 'block';
     });
 
-    // Trascinamento del tavolo (supporto per mouse e touch)
-    table.addEventListener('mousedown', startDrag);
-    table.addEventListener('touchstart', startDrag, { passive: false });
+    // Aggiungi il pulsante di spostamento
+    let moveBtn = document.createElement('button');
+    moveBtn.className = 'move-btn';
+    moveBtn.innerHTML = '&#x2195;'; // Icona per spostare (freccia su e giù)
+    table.appendChild(moveBtn);
+
+    // Trascinamento del tavolo tramite il pulsante di spostamento
+    moveBtn.addEventListener('mousedown', startDrag);
+    moveBtn.addEventListener('touchstart', startDrag, { passive: false });
 
     function startDrag(e) {
         e.preventDefault();
