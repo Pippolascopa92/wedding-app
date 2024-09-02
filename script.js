@@ -145,7 +145,7 @@ function showTableControls(table, canvas) {
 
     let rect = table.getBoundingClientRect();
     controlsContainer.style.top = rect.top + 'px';
-    controlsContainer.style.left = rect.right + 10 + 'px';
+    controlsContainer.style.left = rect.right + 'px';
 
     document.addEventListener('click', function handleClickOutside(event) {
         if (!controlsContainer.contains(event.target) && !table.contains(event.target)) {
